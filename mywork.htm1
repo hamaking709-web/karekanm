@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ku">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ڕێکخەری کارەکان</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #eef2f3; margin: 0; padding: 20px; }
+        .board { display: flex; gap: 20px; justify-content: space-around; flex-wrap: wrap; }
+        .column { background-color: #ebedf0; border-radius: 8px; width: 30%; min-width: 250px; min-height: 400px; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .column h3 { text-align: center; color: #333; border-bottom: 2px solid #ccc; padding-bottom: 10px; }
+        .task-input { display: flex; margin-bottom: 20px; justify-content: center; gap: 10px; }
+        input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 250px; }
+        button.add-btn { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        
+        .task-card { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; gap: 10px; }
+        .actions { display: flex; gap: 5px; justify-content: flex-end; }
+        .btn-move { font-size: 11px; padding: 5px; cursor: pointer; border: none; border-radius: 3px; color: white; }
+        .btn-next { background-color: #28a745; }
+        .btn-prev { background-color: #ffc107; color: black; }
+        .btn-del { background-color: #dc3545; }
+    </style>
+</head>
+<body>
+
+<div class="task-input">
+    <input type="text" id="newTask" placeholder="ناوی کارەکە بنووسە...">
+    <button class="add-btn" onclick="addNewTask()">زیادکردنی کار</button>
+</div>
+
+<div class="board">
+    <div class="column" id="todo">
+        <h3>کارە چاوەڕوانکراوەکان</h3>
+        <div class="task-list"></div>
+    </div>
+
+    <div class="column" id="doing">
+        <h3>لە کاردایە</h3>
+        <div class="task-list"></div>
+    </div>
+
+    <div class="column" id="done">
+        <h3>تەواو بووە</h3>
+        <div class="task-list"></div>
+    </div>
+</div>
+
+<script>
+    function addNewTask() {
+        let text = document.getElementById("newTask").value;
+        if (text === "") return;
+        createTaskElement(text, "todo");
+        document.getElementById("newTask").value = "";
+    }
+
+    function createTaskElement(text, columnId) {
+        let taskCard = document.createElement("div");
+        taskCard.className = "task-card";
+        taskCard.innerHTML = `
+            <span>${text}</span>
+            <div class="actions">
+                ${columnId !== 'todo' ? `<button class="btn-move btn-prev" onclick="moveTask(this, 'prev')">گەڕانەوە</button>` : ''}
+                ${columnId !== 'done' ? `<button class="btn-move btn-next" onclick="moveTask(this, 'next')">قۆناغی داهاتوو</button>` : ''}
+                <button class="btn-move btn-del" onclick="this.parentElement.parentElement.remove()">سڕینەوە</button>
+            </div>
+        `;
+        document.getElementById(columnId).querySelector(".task-list").appendChild(taskCard);
+    }
+
+    function moveTask(btn, direction) {
+        let card = btn.parentElement.parentElement;
+        let currentColumn = card.parentElement.parentElement.id;
+        let text = card.querySelector("span").innerText;
+        
+        let nextCol = "";
+        if (direction === 'next') {
+            if (currentColumn === 'todo') nextCol = 'doing';
+            else if (currentColumn === 'doing') nextCol = 'done';
+        } else {
+            if (currentColumn === 'done') nextCol = 'doing';
+            else if (currentColumn === 'doing') nextCol = 'todo';
+        }
+
+        if (nextCol) {
+            card.remove();
+            createTaskElement(text, nextCol);
+        }
+    }
+</script>
+
+</body>
+</html>
