@@ -3,31 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ڕێکخەری کارەکان</title>
+    <title>ڕێکخەری کارە هاوبەشەکان</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: #eef2f3; margin: 0; padding: 20px; }
         .task-input { display: flex; margin-bottom: 20px; justify-content: center; gap: 10px; }
         input { padding: 10px; border: 1px solid #ddd; border-radius: 5px; width: 250px; }
-        button.add-btn { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; color: white; font-weight: bold; }
+        .add-btn { background-color: #007bff; }
         .board { display: flex; gap: 20px; justify-content: space-around; flex-wrap: wrap; }
-        .column { background-color: #ebedf0; border-radius: 8px; width: 30%; min-width: 250px; min-height: 450px; padding: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .column { background-color: #ebedf0; border-radius: 8px; width: 30%; min-width: 250px; min-height: 450px; padding: 10px; }
         .column h3 { text-align: center; color: #444; border-bottom: 2px solid #ddd; padding-bottom: 10px; }
         .task-card { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        .task-text { display: block; margin-bottom: 10px; font-size: 16px; color: #222; }
+        .task-text { display: block; margin-bottom: 10px; font-size: 16px; }
         .actions { display: flex; gap: 5px; flex-wrap: wrap; }
-        .btn-move { font-size: 11px; padding: 6px; cursor: pointer; border: none; border-radius: 3px; color: white; }
+        .btn-move { font-size: 11px; padding: 5px; }
         .btn-next { background-color: #28a745; }
         .btn-prev { background-color: #ffc107; color: black; }
         .btn-edit { background-color: #17a2b8; }
         .btn-del { background-color: #dc3545; }
-        button:hover { opacity: 0.8; }
     </style>
 </head>
 <body>
 
 <div class="task-input">
     <input type="text" id="newTask" placeholder="ناوی کارەکە بنووسە...">
-    <button class="add-btn" onclick="addNewTask()">زیادکردنی کار</button>
+    <button class="add-btn" id="addBtn">زیادکردن</button>
 </div>
 
 <div class="board">
@@ -36,82 +36,76 @@
     <div class="column" id="done"><h3>تەواو بووە</h3><div class="task-list"></div></div>
 </div>
 
-<script>
-    document.addEventListener("DOMContentLoaded", loadTasks);
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-database.js";
 
-    function addNewTask() {
+    // زانیارییەکانی پڕۆژەکەی حەمە
+    const firebaseConfig = {
+        apiKey: "AIzaSyCadIdDZBKs7VTIHMVOP0LfdRPErBAceCs",
+        authDomain: "karekanm-db.firebaseapp.com",
+        projectId: "karekanm-db",
+        storageBucket: "karekanm-db.firebasestorage.app",
+        messagingSenderId: "156761404454",
+        appId: "1:156761404454:web:9ba2697f1a4ecc0beca2e7",
+        databaseURL: "https://karekanm-db-default-rtdb.firebaseio.com/" 
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const tasksRef = ref(db, 'tasks');
+
+    // زیادکردنی کار
+    document.getElementById("addBtn").onclick = function() {
         let text = document.getElementById("newTask").value;
         if (text.trim() === "") return;
-        createTaskElement(text, "todo");
+        const id = Date.now().toString();
+        set(ref(db, 'tasks/' + id), { text: text, status: 'todo', id: id });
         document.getElementById("newTask").value = "";
-        saveTasks();
-    }
+    };
 
-    function createTaskElement(text, columnId) {
-        let taskCard = document.createElement("div");
-        taskCard.className = "task-card";
-        taskCard.innerHTML = `
-            <span class="task-text">${text}</span>
-            <div class="actions">
-                ${columnId !== 'todo' ? `<button class="btn-move btn-prev" onclick="moveTask(this, 'prev')">گەڕانەوە</button>` : ''}
-                <button class="btn-move btn-edit" onclick="editTask(this)">ئیدیت</button>
-                ${columnId !== 'done' ? `<button class="btn-move btn-next" onclick="moveTask(this, 'next')">قۆناغی داهاتوو</button>` : ''}
-                <button class="btn-move btn-del" onclick="removeTask(this)">سڕینەوە</button>
-            </div>
-        `;
-        document.getElementById(columnId).querySelector(".task-list").appendChild(taskCard);
-    }
-
-    function editTask(btn) {
-        let card = btn.parentElement.parentElement;
-        let textSpan = card.querySelector(".task-text");
-        let oldText = textSpan.innerText;
-        
-        let newText = prompt("کارەکە دەستکاری بکە:", oldText);
-        if (newText !== null && newText.trim() !== "") {
-            textSpan.innerText = newText;
-            saveTasks();
+    // نیشاندانی کارەکان بە شێوەی زیندوو
+    onValue(tasksRef, (snapshot) => {
+        document.querySelectorAll(".task-list").forEach(el => el.innerHTML = "");
+        const data = snapshot.val();
+        if (data) {
+            Object.values(data).forEach(task => {
+                const card = document.createElement("div");
+                card.className = "task-card";
+                card.innerHTML = `
+                    <span class="task-text">${task.text}</span>
+                    <div class="actions">
+                        ${task.status !== 'todo' ? `<button class="btn-move btn-prev" onclick="changeStatus('${task.id}', '${task.status}', 'back')">دواوە</button>` : ''}
+                        <button class="btn-move btn-edit" onclick="editTask('${task.id}', '${task.text}')">ئیدیت</button>
+                        ${task.status !== 'done' ? `<button class="btn-move btn-next" onclick="changeStatus('${task.id}', '${task.status}', 'next')">پێشەوە</button>` : ''}
+                        <button class="btn-move btn-del" onclick="deleteTask('${task.id}')">سڕینەوە</button>
+                    </div>
+                `;
+                document.getElementById(task.status).querySelector(".task-list").appendChild(card);
+            });
         }
-    }
+    });
 
-    function moveTask(btn, direction) {
-        let card = btn.parentElement.parentElement;
-        let currentColumn = card.parentElement.parentElement.id;
-        let text = card.querySelector(".task-text").innerText;
-        let nextCol = (direction === 'next') ? 
-            (currentColumn === 'todo' ? 'doing' : 'done') : 
-            (currentColumn === 'done' ? 'doing' : 'todo');
-        card.remove();
-        createTaskElement(text, nextCol);
-        saveTasks();
-    }
-
-    function removeTask(btn) {
-        if(confirm("ئایا دڵنیایت لە سڕینەوەی ئەم کارە؟")) {
-            btn.parentElement.parentElement.remove();
-            saveTasks();
+    window.changeStatus = function(id, currentStatus, direction) {
+        let nextStatus = "";
+        if (direction === 'next') {
+            nextStatus = currentStatus === 'todo' ? 'doing' : 'done';
+        } else {
+            nextStatus = currentStatus === 'done' ? 'doing' : 'todo';
         }
-    }
+        update(ref(db, 'tasks/' + id), { status: nextStatus });
+    };
 
-    function saveTasks() {
-        let data = {
-            todo: document.getElementById("todo").querySelector(".task-list").innerHTML,
-            doing: document.getElementById("doing").querySelector(".task-list").innerHTML,
-            done: document.getElementById("done").querySelector(".task-list").innerHTML
-        };
-        localStorage.setItem("kanbanData", JSON.stringify(data));
-    }
+    window.deleteTask = function(id) {
+        if(confirm("ئایا دڵنیایت؟")) remove(ref(db, 'tasks/' + id));
+    };
 
-    function loadTasks() {
-        let saved = localStorage.getItem("kanbanData");
-        if (saved) {
-            let data = JSON.parse(saved);
-            document.getElementById("todo").querySelector(".task-list").innerHTML = data.todo;
-            document.getElementById("doing").querySelector(".task-list").innerHTML = data.doing;
-            document.getElementById("done").querySelector(".task-list").innerHTML = data.done;
+    window.editTask = function(id, oldText) {
+        let newText = prompt("دەستکاری بکە:", oldText);
+        if (newText && newText.trim() !== "") {
+            update(ref(db, 'tasks/' + id), { text: newText });
         }
-    }
+    };
 </script>
-
 </body>
 </html>
